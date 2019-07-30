@@ -19,21 +19,36 @@ enum Obj {
 const BOARD_WIDTH: usize = 8;
 const BOARD_HEIGHT: usize = 8;
 
-type Layer<T> = [T; BOARD_WIDTH * BOARD_HEIGHT];
+#[derive(Clone)]
+struct Layer<T>([T; BOARD_WIDTH * BOARD_HEIGHT]);
 
-type Index = usize;
+impl<T> std::ops::Index<Vec2D> for Layer<T> {
+    type Output = T;
+
+    fn index(&self, coord: Vec2D) -> &T {
+        &self.0[Self::index(coord)]
+    }
+}
+
+impl<T> std::ops::IndexMut<Vec2D> for Layer<T> {
+    fn index_mut(&mut self, coord: Vec2D) -> &mut T {
+        &mut self.0[Self::index(coord)]
+    }
+}
+
+impl<T> Layer<T> {
+    #[must_use]
+    fn index((x, y): Vec2D) -> usize {
+        x + y * BOARD_WIDTH
+    }
+
+    fn swap(&mut self, v1: Vec2D, v2: Vec2D) {
+        self.0.swap(Self::index(v1), Self::index(v2));
+    }
+}
+
 type Coord = usize;
 type Vec2D = (Coord, Coord);
-
-#[must_use]
-const fn to_index((x, y): Vec2D) -> Index {
-    (y * BOARD_WIDTH) + x
-}
-
-#[must_use]
-const fn to_vec2d(i: Index) -> Vec2D {
-    (i % BOARD_WIDTH, i / BOARD_WIDTH)
-}
 
 #[must_use]
 fn tile_char(tile: Tile) -> char {
@@ -61,7 +76,6 @@ fn obj_char(obj: Obj, tile: Tile) -> char {
     }
 }
 
-#[must_use]
 struct Board {
     tiles: Layer<Tile>,
     objects: Layer<Obj>,
@@ -71,28 +85,36 @@ impl Board {
     fn print(&self) {
         for y in 0..BOARD_HEIGHT {
             for x in 0..BOARD_WIDTH {
-                let i = to_index((x, y));
-                print!("{}", obj_char(self.objects[i], self.tiles[i]));
+                let obj = self.objects[(x, y)];
+                let tile = self.tiles[(x, y)];
+                print!("{}", obj_char(obj, tile));
             }
             println!();
         }
     }
 
     #[must_use]
-    fn find_player(&self) -> Coord {
-        self.objects.iter().position(|x| *x == Obj::Player).unwrap()
+    fn find_player(&self) -> Vec2D {
+        for y in 0..BOARD_HEIGHT {
+            for x in 0..BOARD_WIDTH {
+                if self.objects[(x, y)] == Obj::Player {
+                    return (x, y);
+                }
+            }
+        }
+        panic!("missing player");
     }
 
     #[must_use]
     fn count_goals(&self) -> usize {
-        self.tiles.iter().filter(|x| **x == Tile::Goal).count() // TODO: why all the stars?
+        self.tiles.0.iter().filter(|&x| *x == Tile::Goal).count() 
     }
 }
 
 #[must_use]
 struct Game {
     board: Board,
-    player_index: Coord,
+    player_index: Vec2D,
     goals_left: usize,
 }
 
@@ -107,30 +129,23 @@ impl Game {
     }
 
     #[must_use]
-    fn obj_at(&mut self, i: Index) -> &mut Obj {
-        &mut self.board.objects[i]
-    }
+    fn move_box(&mut self, source: Vec2D, (ox, oy): (isize, isize)) -> bool {
+        let (px, py) = source;
+        let target = (
+            (px as isize + ox) as usize,
+            (py as isize + oy) as usize
+        );
 
-    #[must_use]
-    fn tile_at(&mut self, i: Index) -> &mut Tile {
-        &mut self.board.tiles[i]
-    }
-
-    #[must_use]
-    fn move_box(&mut self, pos: Vec2D, (ox, oy): (isize, isize)) -> bool {
-        let (px, py) = pos;
-        let source = to_index((px, py));
-        let target = to_index(((px as isize + ox) as usize, (py as isize + oy) as usize));
-
-        if *self.tile_at(target) == Tile::Wall || *self.obj_at(target) != Obj::None {
+        if self.board.tiles[target] == Tile::Wall ||
+           self.board.objects[target] != Obj::None {
             return false;
         }
 
-        if *self.tile_at(source) == Tile::Goal {
+        if self.board.tiles[source] == Tile::Goal {
             self.goals_left += 1;
         }
 
-        if *self.tile_at(target) == Tile::Goal {
+        if self.board.tiles[target] == Tile::Goal {
             self.goals_left -= 1;
         }
 
@@ -139,17 +154,20 @@ impl Game {
     }
 
     fn move_player(&mut self, offset: (isize, isize)) -> bool {
-        let (px, py) = to_vec2d(self.player_index);
+        let (px, py) = self.player_index;
         let (ox, oy) = offset;
         // TODO: can the many casts be avoided?
-        let (tx, ty): (isize, isize) = (px as isize + ox, py as isize + oy);
-        let target_vec2d = (tx as usize, ty as usize);
-        let target = to_index(target_vec2d);
+        let (tx, ty): (isize, isize) = (
+            px as isize + ox,
+            py as isize + oy,
+        );
+        let target = (tx as usize, ty as usize);
 
         let couldnt_push_box =
-            *self.obj_at(target) == Obj::Box && !self.move_box(target_vec2d, offset);
+            self.board.objects[target] == Obj::Box &&
+            !self.move_box(target, offset);
 
-        if *self.tile_at(target) == Tile::Wall || couldnt_push_box {
+        if self.board.tiles[target] == Tile::Wall || couldnt_push_box {
             return false;
         }
 
@@ -164,7 +182,7 @@ impl Game {
     }
 }
 
-static TILE_LAYER: Layer<Tile> = {
+static TILE_LAYER: Layer<Tile> = Layer({
     #[allow(non_snake_case)]
     let (o, H, X) = (Tile::None, Tile::Wall, Tile::Goal);
 
@@ -179,9 +197,9 @@ static TILE_LAYER: Layer<Tile> = {
          H,o,o,o,X,X,X,H,
          H,H,H,H,H,H,H,H];
     layer
-};
+});
 
-static OBJECT_LAYER: Layer<Obj> = {
+static OBJECT_LAYER: Layer<Obj> = Layer({
     #[allow(non_snake_case)]
     let (o, P, B) = (Obj::None, Obj::Player, Obj::Box);
 
@@ -197,13 +215,13 @@ static OBJECT_LAYER: Layer<Obj> = {
          o,o,o,o,o,o,o,o];
 
     layer
-};
+});
 
 #[must_use]
 fn restart() -> bool {
     let mut game = Game::new(Board {
-        tiles: TILE_LAYER,
-        objects: OBJECT_LAYER,
+        tiles: TILE_LAYER.clone(),
+        objects: OBJECT_LAYER.clone(),
     });
 
     loop {
