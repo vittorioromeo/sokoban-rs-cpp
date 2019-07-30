@@ -1,11 +1,7 @@
-#![feature(custom_attribute)]
-#![feature(stmt_expr_attributes)]
+#![deny(unused)]
 
-use std::io;
-use std::io::Read;
+use std::io::{self, Read};
 
-#[must_use] // ANNOYANCE: not default
-#[repr(u8)] // ANNOYANCE: ugly syntax compared to enum class
 #[derive(PartialEq, Copy, Clone)]
 enum Tile {
     None,
@@ -13,8 +9,6 @@ enum Tile {
     Goal,
 }
 
-#[must_use]
-#[repr(u8)]
 #[derive(PartialEq, Copy, Clone)]
 enum Obj {
     None,
@@ -175,14 +169,16 @@ static TILE_LAYER: Layer<Tile> = {
     let (o, H, X) = (Tile::None, Tile::Wall, Tile::Goal);
 
     #[rustfmt::skip]
-    [H,H,H,H,H,H,H,H,
-     H,H,o,o,o,o,o,H,
-     H,o,o,o,o,o,o,H,
-     H,o,o,o,o,o,o,H,
-     H,o,o,o,H,o,X,H,
-     H,o,o,o,o,o,X,H,
-     H,o,o,o,X,X,X,H,
-     H,H,H,H,H,H,H,H]
+    let layer = 
+        [H,H,H,H,H,H,H,H,
+         H,H,o,o,o,o,o,H,
+         H,o,o,o,o,o,o,H,
+         H,o,o,o,o,o,o,H,
+         H,o,o,o,H,o,X,H,
+         H,o,o,o,o,o,X,H,
+         H,o,o,o,X,X,X,H,
+         H,H,H,H,H,H,H,H];
+    layer
 };
 
 static OBJECT_LAYER: Layer<Obj> = {
@@ -190,14 +186,17 @@ static OBJECT_LAYER: Layer<Obj> = {
     let (o, P, B) = (Obj::None, Obj::Player, Obj::Box);
 
     #[rustfmt::skip]
-    [o,o,o,o,o,o,o,o,
-     o,o,o,o,o,o,o,o,
-     o,o,B,B,o,o,o,o,
-     o,o,B,o,B,o,o,o,
-     o,o,o,o,o,o,o,o,
-     o,o,o,o,B,o,o,o,
-     o,P,o,o,o,o,o,o,
-     o,o,o,o,o,o,o,o]
+    let layer = 
+        [o,o,o,o,o,o,o,o,
+         o,o,o,o,o,o,o,o,
+         o,o,B,B,o,o,o,o,
+         o,o,B,o,B,o,o,o,
+         o,o,o,o,o,o,o,o,
+         o,o,o,o,B,o,o,o,
+         o,P,o,o,o,o,o,o,
+         o,o,o,o,o,o,o,o];
+
+    layer
 };
 
 #[must_use]
@@ -213,14 +212,13 @@ fn restart() -> bool {
 
         let input = io::stdin().lock().bytes().nth(0).unwrap().unwrap() as char;
 
-        #[rustfmt::skip]
-        match input as char {
-            'w' => { game.move_player(( 0, -1)); }
-            's' => { game.move_player(( 0,  1)); }
-            'a' => { game.move_player((-1,  0)); }
-            'd' => { game.move_player(( 1,  0)); }
-            _   => {}
-        }
+        let _ = match input as char {
+            'w' => game.move_player(( 0, -1)),
+            's' => game.move_player(( 0,  1)),
+            'a' => game.move_player((-1,  0)),
+            'd' => game.move_player(( 1,  0)),
+            _   => false
+        };
 
         if input == 'r' {
             break true;
