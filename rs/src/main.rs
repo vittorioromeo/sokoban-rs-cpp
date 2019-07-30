@@ -49,6 +49,8 @@ impl<T> Layer<T> {
 
 type Coord = usize;
 type Vec2D = (Coord, Coord);
+type Off2D = (isize, isize);
+
 
 #[must_use]
 fn tile_char(tile: Tile) -> char {
@@ -112,6 +114,12 @@ impl Board {
 }
 
 #[must_use]
+fn offset((px, py): Vec2D, (ox, oy): Off2D) -> Vec2D {
+    ((px as isize + ox) as usize,
+     (py as isize + oy) as usize)
+}
+
+#[must_use]
 struct Game {
     board: Board,
     player_index: Vec2D,
@@ -129,12 +137,8 @@ impl Game {
     }
 
     #[must_use]
-    fn move_box(&mut self, source: Vec2D, (ox, oy): (isize, isize)) -> bool {
-        let (px, py) = source;
-        let target = (
-            (px as isize + ox) as usize,
-            (py as isize + oy) as usize
-        );
+    fn move_box(&mut self, source: Vec2D, off: Off2D) -> bool {
+        let target = offset(source, off);
 
         if self.board.tiles[target] == Tile::Wall ||
            self.board.objects[target] != Obj::None {
@@ -153,19 +157,12 @@ impl Game {
         true
     }
 
-    fn move_player(&mut self, offset: (isize, isize)) -> bool {
-        let (px, py) = self.player_index;
-        let (ox, oy) = offset;
-        // TODO: can the many casts be avoided?
-        let (tx, ty): (isize, isize) = (
-            px as isize + ox,
-            py as isize + oy,
-        );
-        let target = (tx as usize, ty as usize);
+    fn move_player(&mut self, off: (isize, isize)) -> bool {
+        let target = offset(self.player_index, off);
 
         let couldnt_push_box =
             self.board.objects[target] == Obj::Box &&
-            !self.move_box(target, offset);
+            !self.move_box(target, off);
 
         if self.board.tiles[target] == Tile::Wall || couldnt_push_box {
             return false;
