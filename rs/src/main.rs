@@ -119,7 +119,6 @@ fn offset((px, py): Vec2D, (ox, oy): Off2D) -> Vec2D {
      (py as isize + oy) as usize)
 }
 
-#[must_use]
 struct Game {
     board: Board,
     player_index: Vec2D,
