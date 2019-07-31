@@ -51,7 +51,6 @@ type Coord = usize;
 type Vec2D = (Coord, Coord);
 type Off2D = (isize, isize);
 
-
 #[must_use]
 fn tile_char(tile: Tile) -> char {
     // ANNOYANCE: Can't be `const fn`
@@ -109,14 +108,13 @@ impl Board {
 
     #[must_use]
     fn count_goals(&self) -> usize {
-        self.tiles.0.iter().filter(|&x| *x == Tile::Goal).count() 
+        self.tiles.0.iter().filter(|&x| *x == Tile::Goal).count()
     }
 }
 
 #[must_use]
 fn offset((px, py): Vec2D, (ox, oy): Off2D) -> Vec2D {
-    ((px as isize + ox) as usize,
-     (py as isize + oy) as usize)
+    ((px as isize + ox) as usize, (py as isize + oy) as usize)
 }
 
 struct Game {
@@ -139,8 +137,9 @@ impl Game {
     fn move_box(&mut self, source: Vec2D, off: Off2D) -> bool {
         let target = offset(source, off);
 
-        if self.board.tiles[target] == Tile::Wall ||
-           self.board.objects[target] != Obj::None {
+        if self.board.tiles[target] == Tile::Wall
+            || self.board.objects[target] != Obj::None
+        {
             return false;
         }
 
@@ -159,9 +158,8 @@ impl Game {
     fn move_player(&mut self, off: (isize, isize)) {
         let target = offset(self.player_index, off);
 
-        let couldnt_push_box =
-            self.board.objects[target] == Obj::Box &&
-            !self.move_box(target, off);
+        let couldnt_push_box = self.board.objects[target] == Obj::Box
+            && !self.move_box(target, off);
 
         if self.board.tiles[target] == Tile::Wall || couldnt_push_box {
             return;
@@ -182,7 +180,7 @@ static TILE_LAYER: Layer<Tile> = Layer({
     let (o, H, X) = (Tile::None, Tile::Wall, Tile::Goal);
 
     #[rustfmt::skip]
-    let layer = 
+    let layer =
         [H,H,H,H,H,H,H,H,
          H,H,o,o,o,o,o,H,
          H,o,o,o,o,o,o,H,
@@ -199,7 +197,7 @@ static OBJECT_LAYER: Layer<Obj> = Layer({
     let (o, P, B) = (Obj::None, Obj::Player, Obj::Box);
 
     #[rustfmt::skip]
-    let layer = 
+    let layer =
         [o,o,o,o,o,o,o,o,
          o,o,o,o,o,o,o,o,
          o,o,B,B,o,o,o,o,
@@ -223,7 +221,8 @@ fn restart() -> bool {
         let _ = std::process::Command::new("clear").status();
         game.print();
 
-        let input = io::stdin().lock().bytes().nth(0).unwrap().unwrap() as char;
+        let input =
+            io::stdin().lock().bytes().nth(0).unwrap().unwrap() as char;
 
         #[rustfmt::skip]
         match input as char {
