@@ -1,6 +1,6 @@
 #![deny(unused)]
 
-use std::io::{self, Read};
+use std::io::{self, BufRead, Write};
 
 #[derive(PartialEq, Copy, Clone)]
 enum Tile {
@@ -210,36 +210,43 @@ static OBJECT_LAYER: Layer<Obj> = Layer({
     layer
 });
 
+fn clear() {
+    let _ = std::process::Command::new("clear").status();
+}
+
 #[must_use]
 fn restart() -> bool {
     let mut game = Game::new(Board {
         tiles: TILE_LAYER.clone(),
         objects: OBJECT_LAYER.clone(),
     });
+    let input = io::stdin();
+    let mut output = io::stdout();
 
-    loop {
-        let _ = std::process::Command::new("clear").status();
+    let mut refresh = |game: &Game| {
+        clear();
         game.print();
+        output.flush().unwrap();
+    };
 
-        let input =
-            io::stdin().lock().bytes().nth(0).unwrap().unwrap() as char;
-
-        #[rustfmt::skip]
-        match input as char {
-            'w' => game.move_player(( 0, -1)),
-            's' => game.move_player(( 0,  1)),
-            'a' => game.move_player((-1,  0)),
-            'd' => game.move_player(( 1,  0)),
-            _   => ()
-        };
-
-        if input == 'r' {
-            break true;
-        }
-        if input == 'q' {
-            break false;
+    refresh(&game);
+    for line in input.lock().lines() {
+        for ch in line.unwrap().chars() {
+            #[rustfmt::skip]
+            match ch {
+                'w' => game.move_player(( 0, -1)),
+                's' => game.move_player(( 0,  1)),
+                'a' => game.move_player((-1,  0)),
+                'd' => game.move_player(( 1,  0)),
+                'r' => { refresh(&game); return true; },
+                'q' => { refresh(&game); return false; },
+                _   => (),
+            };
+            refresh(&game);
         }
     }
+    refresh(&game);
+    false
 }
 
 fn main() {
