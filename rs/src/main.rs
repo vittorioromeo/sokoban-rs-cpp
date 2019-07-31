@@ -156,7 +156,7 @@ impl Game {
         true
     }
 
-    fn move_player(&mut self, off: (isize, isize)) -> bool {
+    fn move_player(&mut self, off: (isize, isize)) {
         let target = offset(self.player_index, off);
 
         let couldnt_push_box =
@@ -164,12 +164,11 @@ impl Game {
             !self.move_box(target, off);
 
         if self.board.tiles[target] == Tile::Wall || couldnt_push_box {
-            return false;
+            return;
         }
 
         self.board.objects.swap(target, self.player_index);
         self.player_index = target;
-        true
     }
 
     fn print(&self) {
@@ -226,12 +225,13 @@ fn restart() -> bool {
 
         let input = io::stdin().lock().bytes().nth(0).unwrap().unwrap() as char;
 
-        let _ = match input as char {
+        #[rustfmt::skip]
+        match input as char {
             'w' => game.move_player(( 0, -1)),
             's' => game.move_player(( 0,  1)),
             'a' => game.move_player((-1,  0)),
             'd' => game.move_player(( 1,  0)),
-            _   => false
+            _   => ()
         };
 
         if input == 'r' {
